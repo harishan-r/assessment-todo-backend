@@ -23,7 +23,8 @@ export default ({todoRepository}) => {
                 ...req.body,
                 todoID,
                 userID: session.userID,
-                created
+                created,
+                completed: false
             };
 
             if (validateTodo(newTodo)) {
@@ -36,6 +37,59 @@ export default ({todoRepository}) => {
         catch (err) {
             console.error(err);
             return res.status(500).send({error: "Todo creation failed."});
+        }
+    });
+
+    // Fetch the user’s todos from the database
+    router.get('/fetch-all', auth, async (req, res) => {
+        try {
+            let session = verifyToken(req.cookies['todox-session']);
+            let todos = await todoRepository.findAll(session.userID);
+            return res.status(200).send(todos);
+        } catch (err) {
+            console.error(err);
+            return res.status(500).send({ error: "Failed to fetch todos." });
+        }
+    });
+
+    // Update todo completed status
+    router.post('/toggle-completed/:id', auth, async (req, res) => {
+        try {
+            let session = verifyToken(req.cookies['todox-session']);
+            const todoID = req.params.id;
+
+            let todo = await todoRepository.findOneByToDoID(todoID);
+
+            if (!todo) {
+                return res.status(404).send({ error: "Todo not found." });
+            }
+            
+            let completed = !todo.completed;
+            let updatedTodo = await todoRepository.flipComplete(todoID, completed);
+            return res.status(200).send(updatedTodo);
+        } catch (err) {
+            console.error(err);
+            return res.status(500).send({ error: "Failed to update todo." });
+        }
+    });
+
+    // Update todo name
+    router.post('/update-name/:id', auth, async (req, res) => {
+        try {
+            let session = verifyToken(req.cookies['todox-session']);
+            const todoID = req.params.id;
+
+            let todo = await todoRepository.findOneByToDoID(todoID);
+
+            if (!todo) {
+                return res.status(404).send({ error: "Todo not found." });
+            }
+
+            let updatedTodo = await todoRepository.updateName(todoID, req.body.name);
+            return res.status(200).send(updatedTodo);
+        } catch (err) {
+            console.error(err);
+            return res.status(500).send({ error: "Failed to update todo." });
         }
     });
 
